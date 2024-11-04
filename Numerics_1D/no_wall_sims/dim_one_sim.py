@@ -35,7 +35,7 @@ def compute_p1(f, e1, delta_theta):
     return np.dot(f, e1) * delta_theta
 
 @njit
-def compute_U_x(f, rho_, p1_, V_diff, delta_x, delta_theta, D_E, v_0, N_theta, d_s_, s_, Q_diff_vectorized):
+def compute_U_x(f, rho_, p1_, delta_x, delta_theta, D_E, v_0, N_theta, d_s_, s_, Q_diff_vectorized):
     # Get the number of x values
     N_x = f.shape[0]
     
@@ -62,9 +62,9 @@ def compute_U_x(f, rho_, p1_, V_diff, delta_x, delta_theta, D_E, v_0, N_theta, d
         factor_avg[i] = 0.5 * (factor[i] + factor[i + 1])
 
     # Compute potential term
-    potential = np.empty((N_x - 1, N_theta))
-    for j in range(N_theta):
-        potential[:, j] = factor_avg * V_diff
+    #potential = np.empty((N_x - 1, N_theta))
+    #for j in range(N_theta):
+    #    potential[:, j] = factor_avg * V_diff
 
     # Compute p1_s_rho and average
     p1_s_rho = p1_ * s_ / d_s_
@@ -79,7 +79,7 @@ def compute_U_x(f, rho_, p1_, V_diff, delta_x, delta_theta, D_E, v_0, N_theta, d
         activity[:, j] = 0.5 * (p1_avg + cos_term[j])
 
     # Return the final computation
-    return -D_E * (diffusion + exclusion + potential) + v_0 * activity
+    return -D_E * (diffusion + exclusion) + v_0 * activity
 
 @njit
 def compute_U_theta(f, delta_theta, D_O):
@@ -153,7 +153,7 @@ def compute_df_dt(F_x_, F_theta_, delta_x, delta_theta, N_x, d_s_):
     return dF_x_dx + dF_theta_dtheta
 
 class f:
-    def __init__(self, N_x, N_theta, V, D_E=0.25, v_0=20.0, D_O=1.0, L_x=1.0) -> None:
+    def __init__(self, N_x, N_theta, D_E=1.0, v_0=20.0, D_O=1.0, L_x=1.0) -> None:
         self.L_x = L_x
         self.N_x = N_x
         self.N_theta = N_theta
@@ -170,10 +170,6 @@ class f:
         self.Pe = self.l_p / self.l_D
         self.l = self.l_D / L_x
 
-        self.V = V
-        x_vals = self.delta_x * np.arange(self.N_x)
-        self.V_diff = np.diff(self.V(x_vals)) / self.delta_x
-
         self.f = np.zeros((N_x, N_theta))
         self.calc_time = 0.0
         self.e1 = np.cos(np.arange(self.N_theta) * self.delta_theta)
@@ -188,10 +184,9 @@ class f:
         sin = np.tile(sine_wave, (self.N_theta, 1)).T
         self.f = np.copy(0.8*sin/(2*np.pi*3))
 
-    def set_gaussian(self):
+    def set_gaussian(self, std_dev=1.5):
         x = np.linspace(-2, 2, self.N_x)  # Symmetric around 0
         mean = 0
-        std_dev = 1.5
         gaussian_1d = np.exp(-0.5 * ((x - mean) / std_dev) ** 2)
         gaussian_2d = np.tile(gaussian_1d, (self.N_theta, 1)).T
         self.f = 0.9*gaussian_2d/(2*np.pi)
@@ -203,7 +198,7 @@ class f:
         d_s_ = d_s_arr(rho_)
         s_ = s_arr(rho_)
 
-        U_x_ = compute_U_x(self.f, rho_, p1_, self.V_diff, self.delta_x, self.delta_theta, 
+        U_x_ = compute_U_x(self.f, rho_, p1_, self.delta_x, self.delta_theta, 
                            self.D_E, self.v_0, self.N_theta, d_s_, s_, Q_diff_vectorized)
         U_theta_ = compute_U_theta(self.f, self.delta_theta, self.D_O)
 
@@ -226,7 +221,7 @@ class f:
         a_x = max(a_x, 0.1)
         a_theta = max(a_theta, 0.1)
 
-        delta_t = min(self.delta_x / (a_x * 6), self.delta_theta / (a_theta * 6), 0.00001)
+        delta_t = min(self.delta_x / (a_x * 6), self.delta_theta / (a_theta * 6), 10**(-3))
         
         self.f[1:-1, :] += df_dt_ * delta_t
         self.t += delta_t
