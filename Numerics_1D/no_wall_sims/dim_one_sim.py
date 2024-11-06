@@ -221,7 +221,7 @@ class f:
         a_x = max(a_x, 0.1)
         a_theta = max(a_theta, 0.1)
 
-        delta_t = min(self.delta_x / (a_x * 6), self.delta_theta / (a_theta * 6), 10**(-3))
+        delta_t = min(self.delta_x / (a_x * 6), self.delta_theta / (a_theta * 6), 10**(-4))
         
         self.f[1:-1, :] += df_dt_ * delta_t
         self.t += delta_t
