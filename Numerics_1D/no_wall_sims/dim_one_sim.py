@@ -76,7 +76,7 @@ def compute_U_x(f, rho_, p1_, delta_x, delta_theta, D_E, v_0, N_theta, d_s_, s_,
     activity = np.empty((N_x - 1, N_theta))
     cos_term = np.cos(np.arange(N_theta) * delta_theta)
     for j in range(N_theta):
-        activity[:, j] = 0.5 * (p1_avg + cos_term[j])
+        activity[:, j] = (p1_avg + cos_term[j])
 
     # Return the final computation
     return -D_E * (diffusion + exclusion) + v_0 * activity
